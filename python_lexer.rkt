@@ -50,7 +50,6 @@
                  (char-range #\A #\Z)
                  (char-range #\0 #\9)
                  "_"))) (token-ID lexeme))))
-
 (define-tokens a (ID NUM))
 (define-empty-tokens b (EOF pass continue break return global def if else for in or and not True False
                             None equasion grater-than less-than plus minus power division mult
