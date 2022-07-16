@@ -1,0 +1,93 @@
+#lang racket
+
+
+(require parser-tools/lex
+         (prefix-in : parser-tools/lex-sre)
+         parser-tools/yacc)
+
+(define python-lexer
+  (lexer
+   (whitespace (python-lexer input-port))
+   ((eof) (token-EOF))
+   ("pass" (token-pass))
+   ("continue" (token-continue))
+   ("break" (token-break))
+   ("return" (token-return))
+   ("global" (token-global))
+   ("def" (token-def))
+   ("if" (token-if))
+   ("else" (token-else))
+   ("for" (token-for))
+   ("in" (token-in))
+   ("or" (token-or))
+   ("and" (token-and))
+   ("not" (token-not))
+   ("True" (token-True))
+   ("False" (token-False))
+   ("None" (token-None))
+   ("==" (token-equasion))
+   (">" (token-grater-than))
+   ("<" (token-less-than))
+   ("+" (token-plus))
+   ("-" (token-minus))
+   ("**" (token-power))
+   ("/" (token-division))
+   ("*" (token-mult))
+   ("[" (token-bracket-begin))
+   ("]" (token-bracket-end))
+   (":" (token-colon))
+   ("(" (token-parenthes-begin))
+   (")" (token-parenthes-end))
+   ("," (token-comma))
+   ("=" (token-assignment))
+   (";" (token-semicolon))
+   ((:or (:+ (char-range #\0 #\9))
+         (:: (:+ (char-range #\0 #\9)) #\. (:+ (char-range #\0 #\9))))
+    (token-NUM (string->number lexeme)))
+   ((:: (:or (char-range #\a #\z)
+             (char-range #\A #\Z))
+        (:* (:or (char-range #\a #\z)
+                 (char-range #\A #\Z)
+                 (char-range #\0 #\9)
+                 "_"))) (token-ID lexeme))))
+
+(define-tokens a (ID NUM))
+(define-empty-tokens b (EOF pass continue break return global def if else for in or and not True False
+                            None equasion grater-than less-than plus minus power division mult
+                            bracket-begin bracket-end colon parenthes-begin parenthes-end comma
+                            assignment semicolon))
+
+(define simple-math-parser
+  (parser
+   (start program)
+   (end EOF)
+   (error void)
+   (tokens a b)
+   (grammar
+    (program ((statements) (list 'program $1)))
+    (statements ((statement semicolon) $1)
+                ((statements statement semicolon) (list 'statements $1 $2)))
+    (statement ((compound_stmt) $1)
+               ((simple_stmt) $1))
+    (simple_stmt ((assignment_stmt) $1)
+                 ((global_stmt) $1)
+                 ((return_stmt) $1)
+                 ((pass) (list 'pass))
+                 ((break) (list 'break))
+                 ((continue) (list 'continue)))
+    (compound_stmt ((function_def) $1)
+                   ((if_stmt) $1)
+                   ((for_stmt) $1))
+    (assignment_stmt ((ID assignment expression) (list 'assignment $1 $3)))
+    (return_stmt ((return) (list 'return-non))
+                 ((return expression) (list 'return $2)))
+    (global_stmt ((global ID) (list 'global $2)))
+    (function_def ((def ID paranthes-begin params paranthes-end colon statements) (list 'func_def $2 $4 $7))
+                  ((def ID paranthes-begin paranthes-end colon statements) (list 'func_def_no_param $2 $6)))
+    (params ((param_with_default) $1)
+            ((params comma param_with_default) (list 'params $1 $3)))
+    (params_with_default ((ID assignment expression) (list 'param $1 $3)))
+
+
+(define lex-this (lambda (lexer input) (lambda () (lexer input))))
+(define my-lexer (lex-this python-lexer (open-input-string "pass return break def else for False None ali s23_a")))
