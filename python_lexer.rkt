@@ -229,3 +229,77 @@
      
 )
 
+
+(define-datatype program program? 
+     (stmt_EOF
+          (var statements?))  
+)
+
+(define-datatype statements statements? 
+     (stmt_semi
+          (var statement?))
+     (stmts_stmt_semi
+          (first statements?)
+          (rest statement?))  
+)
+
+(define-datatype statement statement? 
+     (Compound_stmt
+          (var  Compound_stmt?)) 
+     (Simple_stmt
+          (var Simple_stmt?)) 
+)
+
+(define-datatype Simple_stmt Simple_stmt? 
+     (Assignment
+          (var  Assignment?)) 
+     (Global_stmt
+          (var Global_stmt?)) 
+     (Return_stmt
+          (var Return_stmt?))
+)
+
+(define-datatype Compound_stmt Compound_stmt? 
+     (Function_def
+          (var  Function_def?)) 
+     (If_stmt
+          (var If_stmt?)) 
+     (For_stmt
+          (var For_stmt?))
+)
+
+(define-datatype statements statements? 
+     (Assignment
+          (ID number?)
+          (exp expression?))
+     (Return_stmt
+          (exp expression?))
+     (return)
+     (Global_stmt
+          (ID number?))  
+     (Function_def_param
+          (ID number?)
+          (params Params?)
+          (body statements?))
+     (Function_def
+          (ID number?)
+          (body statements?))
+     (Params_with_def
+          (param_with_default param_with_default?))
+     (Params_with_def_param
+          (params params?)
+          (param_with_default param_with_default?))
+     (param_with_default
+          (ID number?)
+          (exp expressions?))
+     (if_stmt
+          (expression expression?)
+          (statements statements?)
+          (else_block else_block?))
+     (else_block
+          (statements statements?))
+     (For_stmt
+          (ID number?)
+          (expression expression?)
+          (body statements?))
+)
