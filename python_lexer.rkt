@@ -1,5 +1,6 @@
 #lang racket
 
+(require (lib "eopl.ss" "eopl"))
 
 (require parser-tools/lex
          (prefix-in : parser-tools/lex-sre)
@@ -135,6 +136,96 @@
 
 
 (define lex-this (lambda (lexer input) (lambda () (lexer input))))
-(define my-lexer (lex-this python-lexer (open-input-string "5")))
-(let ((parser-res (simple-math-parser my-lexer))) parser-res)
+(define my-lexer (lex-this python-lexer (open-input-string "pass return break def else for False None ali s23_a")))
+
+
+; (define-datatype expression expression?
+;      (disjunction-exp
+;           (var disjunction?))
+; )
+; (define-datatype disjunction disjunction?
+;      (conjunction-exp
+;           (var conjunction?))
+;      (dis-or-conj-exp
+;           (first disjunction?)
+;           (rest conjunction?))
+; )
+; (define-datatype conjunction conjunction?
+;      (inversion-exp
+;           (var inversion?))
+;      (conj-and-inv-exp
+;           (first conjunction?)
+;           (rest inversion?))
+; )
+; (define-datatype inversion inversion?
+;      (not-inv-exp
+;           (var inversion?))
+;      (comparison-exp
+;           (var comparison?))
+; )
+
+
+(define-datatype expression expression?
+     (or-exp
+          (left expression?)
+          (right expression?))
+     (and-exp
+          (left expression?)
+          (right expression?))
+     (not-exp
+          (var expression?))
+     (equal-exp ; sum == sum
+          (left expression?)
+          (right expression?))
+     (lt-exp ; sum < sum
+          (left expression?)
+          (right expression?))
+     (gt-exp ; sum > sum
+          (left expression?)
+          (right expression?))
+     (add-exp ; sum + term
+          (left expression?)
+          (right expression?))
+     (sub-exp
+          (left expression?)
+          (right expression?))
+     (mult-exp
+          (left expression?)
+          (right expression?))
+     (div-exp
+          (soorat expression?)
+          (makhraj expression?))
+     (pos-exp ; + power
+          (var expression?))
+     (neg-exp ; - power
+          (var expression?))
+     (pow-exp ; atom ** factor
+          (atom expression?)
+          (factor expression?))
+     (bracket-exp ; primary [expression]
+          (primary expression?)
+          (in-bracket expression?))
+     (no-arg-func-exp ; primary ()
+          (primary expression?))
+     (with-arg-func-exp ; primary (arguments)
+          (primary expression?)
+          (args expression?))
+     (arg-comma-exp ; arguments, expression
+          (left expression?)
+          (right expression?))
+     (exp-comma-exp ; expression, expression
+          (left expression?)
+          (right expression?))
+     (free-bracket-exp) ; []
+     (list-exp ; [expression]
+          (var expression?))
+     (num-exp
+          (num expression?))
+     (id-exp
+          (name expression?))
+     (true-exp)
+     (false-exp)
+     (none-exp)
+     
+)
 
