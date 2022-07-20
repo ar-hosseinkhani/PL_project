@@ -57,7 +57,7 @@
                             bracket-begin bracket-end colon parenthes-begin parenthes-end comma
                             assignment semicolon))
 
-(define simple-math-parser
+(define python-parser
   (parser
    (start program)
    (end EOF)
@@ -89,7 +89,7 @@
     (param_with_default ((ID assignment expression) (list 'param $1 $3)))
     (if_stmt ((if expression colon statements else_block) (list 'if $2 $4 $5)))
     (else_block ((else colon statements) (list 'else $3)))
-    (for_stmt ((for ID in expression colon statements) (list 'for $4 $6)))
+    (for_stmt ((for ID in expression colon statements) (list 'for $2 $4 $6)))
     (expression ((disjunction) $1))
     (disjunction ((conjunction) $1)
                  ((disjunction or conjunction) (list 'disjunction $1 $3))) ; TODO: check
