@@ -1,5 +1,6 @@
 #lang racket
 
+(require (lib "eopl.ss" "eopl"))
 
 (require parser-tools/lex
          (prefix-in : parser-tools/lex-sre)
@@ -56,7 +57,7 @@
                             bracket-begin bracket-end colon parenthes-begin parenthes-end comma
                             assignment semicolon))
 
-(define simple-math-parser
+(define python-parser
   (parser
    (start program)
    (end EOF)
@@ -88,7 +89,7 @@
     (param_with_default ((ID assignment expression) (list 'param $1 $3)))
     (if_stmt ((if expression colon statements else_block) (list 'if $2 $4 $5)))
     (else_block ((else colon statements) (list 'else $3)))
-    (for_stmt ((for ID in expression colon statements) (list 'for $4 $6)))
+    (for_stmt ((for ID in expression colon statements) (list 'for $2 $4 $6)))
     (expression ((disjunction) $1))
     (disjunction ((conjunction) $1)
                  ((disjunction or conjunction) (list 'disjunction $1 $3))) ; TODO: check
@@ -135,6 +136,191 @@
 
 
 (define lex-this (lambda (lexer input) (lambda () (lexer input))))
-(define my-lexer (lex-this python-lexer (open-input-string "5")))
-(let ((parser-res (simple-math-parser my-lexer))) parser-res)
+(define my-lexer (lex-this python-lexer (open-input-string "pass return break def else for False None ali s23_a")))
 
+
+; (define-datatype expression expression?
+;      (disjunction-exp
+;           (var disjunction?))
+; )
+; (define-datatype disjunction disjunction?
+;      (conjunction-exp
+;           (var conjunction?))
+;      (dis-or-conj-exp
+;           (first disjunction?)
+;           (rest conjunction?))
+; )
+; (define-datatype conjunction conjunction?
+;      (inversion-exp
+;           (var inversion?))
+;      (conj-and-inv-exp
+;           (first conjunction?)
+;           (rest inversion?))
+; )
+; (define-datatype inversion inversion?
+;      (not-inv-exp
+;           (var inversion?))
+;      (comparison-exp
+;           (var comparison?))
+; )
+
+
+(define-datatype expression expression?
+     (or-exp
+          (left expression?)
+          (right expression?))
+     (and-exp
+          (left expression?)
+          (right expression?))
+     (not-exp
+          (var expression?))
+     (equal-exp ; sum == sum
+          (left expression?)
+          (right expression?))
+     (lt-exp ; sum < sum
+          (left expression?)
+          (right expression?))
+     (gt-exp ; sum > sum
+          (left expression?)
+          (right expression?))
+     (add-exp ; sum + term
+          (left expression?)
+          (right expression?))
+     (sub-exp
+          (left expression?)
+          (right expression?))
+     (mult-exp
+          (left expression?)
+          (right expression?))
+     (div-exp
+          (soorat expression?)
+          (makhraj expression?))
+     (pos-exp ; + power
+          (var expression?))
+     (neg-exp ; - power
+          (var expression?))
+     (pow-exp ; atom ** factor
+          (atom expression?)
+          (factor expression?))
+     (bracket-exp ; primary [expression]
+          (primary expression?)
+          (in-bracket expression?))
+     (no-arg-func-exp ; primary ()
+          (primary expression?))
+     (with-arg-func-exp ; primary (arguments)
+          (primary expression?)
+          (args expression?))
+     (arg-comma-exp ; arguments, expression
+          (left expression?)
+          (right expression?))
+     (exp-comma-exp ; expression, expression
+          (left expression?)
+          (right expression?))
+     (free-bracket-exp) ; []
+     (list-exp ; [expression]
+          (var expression?))
+     (num-exp
+          (num expression?))
+     (id-exp
+          (name expression?))
+     (true-exp)
+     (false-exp)
+     (none-exp)
+     
+)
+
+
+(define-datatype program program? 
+     (prog
+          (var statement?))
+)
+
+;(define-datatype statements statements? 
+;     (stmt_semi
+;          (var statement?))
+;     (stmts_stmt_semi
+;          (first statements?)
+;          (rest statement?))  
+;)
+
+;(define-datatype statement statement? 
+;     (Compound_stmt
+;          (var  Compound_stmt?)) 
+;     (Simple_stmt
+;          (var Simple_stmt?)) 
+;)
+
+;(define-datatype Simple_stmt Simple_stmt? 
+;     (Assignment
+;          (var  Assignment?)) 
+;     (Global_stmt
+;          (var Global_stmt?)) 
+;     (Return_stmt
+;          (var Return_stmt?))
+;)
+
+;(define-datatype Compound_stmt Compound_stmt? 
+;     (Function_def
+;          (var  Function_def?)) 
+;     (If_stmt
+;          (var If_stmt?)) 
+;     (For_stmt
+;          (var For_stmt?))
+;)
+
+(define-datatype statement statement?
+     (statements
+          (stmts statement?)
+          (stmt statement?))
+     (break)
+     (pass)
+     (continue)
+     (assignment
+          (ID identifier?)
+          (exp expression?))
+     (return-value
+          (value expression?))
+     (return-none)
+     (global_stmt
+          (ID identifier?))  
+     (function-with-param
+          (ID identifier?)
+          (params statement?)
+          (body statement?))
+     (function-without-param
+          (ID identifier?)
+          (body statement?))
+     (params
+          (params statement?)
+          (param-with-default statement?))
+     (param-with-default
+          (ID identifier?)
+          (exp expression?))
+     (if_stmt
+          (condition expression?)
+          (statements statement?)
+          (else_block statement?))
+     (else_block
+          (statements statement?))
+     (For_stmt
+          (ID identifier?)
+          (list expression?)
+          (body statement?))
+)
+
+(define-datatype python-val py-val?
+  (num-val
+   (val number?))
+  (bool-val
+   (val boolean?)))
+
+(define-datatype environment environment?
+  (empty-env)
+  (extend-env
+   (ID identifier?)
+   (val py-val?)
+   (saved-env environment?))
+  (extend-env-function
+   (ID identifier?)
+   (body statement?)
+   (func-env environment?)))
