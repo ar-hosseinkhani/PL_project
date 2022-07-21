@@ -84,8 +84,8 @@
     (global_stmt ((global ID) (list 'global $2)))
     (function_def ((def ID parenthes-begin params parenthes-end colon statements) (list 'func_def $2 $4 $7))
                   ((def ID parenthes-begin parenthes-end colon statements) (list 'func_def_no_param $2 $6)))
-    (params ((param_with_default) $1)
-            ((params comma param_with_default) (list 'params $1 $3)))
+    (params ((param_with_default) (list $1))
+            ((params comma param_with_default) (append $1 (list $3))))
     (param_with_default ((ID assignment expression) (list 'param $1 $3)))
     (if_stmt ((if expression colon statements else_block) (list 'if $2 $4 $5)))
     (else_block ((else colon statements) (list 'else $3)))
@@ -285,8 +285,7 @@
           (ID identifier?)
           (body statement?))
      (params
-          (params statement?)
-          (param-with-default statement?))
+          (params list?))
      (param-with-default
           (ID identifier?)
           (exp expression?))
