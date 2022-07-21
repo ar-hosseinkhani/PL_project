@@ -119,8 +119,8 @@
              ((primary bracket-begin expression bracket-end) (list 'primary_bracket $1 $3))
              ((primary parenthes-begin parenthes-end) (list 'primary_noparam $1))
              ((primary parenthes-begin arguments parenthes-end) (list 'primary_args $1 $3)))
-    (arguments ((expression) $1)
-               ((arguments comma expression) (list 'arguments $1 $3)))
+    (arguments ((expression) (list $1))
+               ((arguments comma expression) (append $1 (list $3))))
     (atom ((ID) (list 'ID $1))
           ((True) (list 'True))
           ((False) (list 'False))
@@ -129,14 +129,15 @@
           ((list_stmt) $1))
     (list_stmt ((bracket-begin expressions bracket-end) (list 'list $2))
                ((bracket-begin bracket-end) (list 'empty_list)))
-    (expressions ((expressions comma expression) (list 'expressions $1 $3))
-                 ((expression) (list 'expression $1))))))
+    (expressions ((expressions comma expression) (append $1 (list $3)))
+                 ((expression) (list $1))))))
     
     
 
 
 (define lex-this (lambda (lexer input) (lambda () (lexer input))))
-(define my-lexer (lex-this python-lexer (open-input-string "pass return break def else for False None ali s23_a")))
+(define my-lexer (lex-this python-lexer (open-input-string "a = f(1, 2, 3);")))
+(let ((parser-res (python-parser my-lexer))) parser-res)
 
 
 ; (define-datatype expression expression?
@@ -209,24 +210,17 @@
           (primary expression?))
      (with-arg-func-exp ; primary (arguments)
           (primary expression?)
-          (args expression?))
-     (arg-comma-exp ; arguments, expression
-          (left expression?)
-          (right expression?))
-     (exp-comma-exp ; expression, expression
-          (left expression?)
-          (right expression?))
+          (args list?))
      (free-bracket-exp) ; []
      (list-exp ; [expression]
-          (var expression?))
+          (var list?))
      (num-exp
-          (num expression?))
+          (num number?))
      (id-exp
-          (name expression?))
+          (name identifier?))
      (true-exp)
      (false-exp)
      (none-exp)
-     
 )
 
 
@@ -309,10 +303,15 @@
 )
 
 (define-datatype python-val py-val?
-  (num-val
-   (val number?))
+  (int-val
+   (val exact-integer?))
+  (float-val
+   (val flonum?))
   (bool-val
-   (val boolean?)))
+   (val boolean?))
+  (list-val
+   (val list?))
+  (none-val))
 
 (define-datatype environment environment?
   (empty-env)
