@@ -136,7 +136,7 @@
 
 
 (define lex-this (lambda (lexer input) (lambda () (lexer input))))
-(define my-lexer (lex-this python-lexer (open-input-string "a = f(1, 2, 3);")))
+(define my-lexer (lex-this python-lexer (open-input-string "def f(a = 2, b = 3): return a + b; ;")))
 (let ((parser-res (python-parser my-lexer))) parser-res)
 
 
@@ -284,8 +284,6 @@
      (function-without-param
           (ID identifier?)
           (body statement?))
-     (params
-          (params list?))
      (param-with-default
           (ID identifier?)
           (exp expression?))
