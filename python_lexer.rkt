@@ -6,6 +6,8 @@
          (prefix-in : parser-tools/lex-sre)
          parser-tools/yacc)
 
+;;; lexer and parser
+
 (define python-lexer
   (lexer
    (whitespace (python-lexer input-port))
@@ -132,39 +134,12 @@
     (expressions ((expressions comma expression) (append $1 (list $3)))
                  ((expression) (list $1))))))
     
-    
-
-
 (define lex-this (lambda (lexer input) (lambda () (lexer input))))
 (define my-lexer (lex-this python-lexer (open-input-string "def f(a = 2, b = 3): return a + b; ;")))
 (let ((parser-res (python-parser my-lexer))) parser-res)
 
-
-; (define-datatype expression expression?
-;      (disjunction-exp
-;           (var disjunction?))
-; )
-; (define-datatype disjunction disjunction?
-;      (conjunction-exp
-;           (var conjunction?))
-;      (dis-or-conj-exp
-;           (first disjunction?)
-;           (rest conjunction?))
-; )
-; (define-datatype conjunction conjunction?
-;      (inversion-exp
-;           (var inversion?))
-;      (conj-and-inv-exp
-;           (first conjunction?)
-;           (rest inversion?))
-; )
-; (define-datatype inversion inversion?
-;      (not-inv-exp
-;           (var inversion?))
-;      (comparison-exp
-;           (var comparison?))
-; )
-
+;;;------------------------------------------------------------------------------------------
+;;; datatype statement and expression and program
 
 (define-datatype expression expression?
      (or-exp
@@ -217,50 +192,16 @@
      (num-exp
           (num number?))
      (id-exp
-          (name identifier?))
+          (name string?))
      (true-exp)
      (false-exp)
      (none-exp)
 )
 
-
 (define-datatype program program? 
      (prog
           (var statement?))
 )
-
-;(define-datatype statements statements? 
-;     (stmt_semi
-;          (var statement?))
-;     (stmts_stmt_semi
-;          (first statements?)
-;          (rest statement?))  
-;)
-
-;(define-datatype statement statement? 
-;     (Compound_stmt
-;          (var  Compound_stmt?)) 
-;     (Simple_stmt
-;          (var Simple_stmt?)) 
-;)
-
-;(define-datatype Simple_stmt Simple_stmt? 
-;     (Assignment
-;          (var  Assignment?)) 
-;     (Global_stmt
-;          (var Global_stmt?)) 
-;     (Return_stmt
-;          (var Return_stmt?))
-;)
-
-;(define-datatype Compound_stmt Compound_stmt? 
-;     (Function_def
-;          (var  Function_def?)) 
-;     (If_stmt
-;          (var If_stmt?)) 
-;     (For_stmt
-;          (var For_stmt?))
-;)
 
 (define-datatype statement statement?
      (statements
@@ -270,34 +211,43 @@
      (pass)
      (continue)
      (assignment
-          (ID identifier?)
+          (ID string?)
           (exp expression?))
      (return-value
           (value expression?))
      (return-none)
      (global_stmt
-          (ID identifier?))  
+          (ID string?))  
      (function-with-param
-          (ID identifier?)
-          (params statement?)
+          (ID string?)
+          (params list?)
           (body statement?))
      (function-without-param
-          (ID identifier?)
+          (ID string?)
           (body statement?))
      (param-with-default
-          (ID identifier?)
+          (ID string?)
           (exp expression?))
      (if_stmt
           (condition expression?)
           (statements statement?)
           (else_block statement?))
-     (else_block
-          (statements statement?))
      (For_stmt
-          (ID identifier?)
-          (list expression?)
+          (ID string?)
+          (lst list?)
           (body statement?))
 )
+
+(define-datatype stmt-status status?
+  (pass-st)
+  (break-st)
+  (cont-st)
+  (ret-none-st)
+  (ret-val-st
+   (val py-val?)))
+
+;;;------------------------------------------------------------------------------------
+;;; values
 
 (define-datatype python-val py-val?
   (int-val
@@ -308,15 +258,232 @@
    (val boolean?))
   (list-val
    (val list?))
-  (none-val))
+  (none-val)
+  (proc-val
+   (name string?)
+   (body statement?)
+   (env environment?)))
+
+(define py-val->int
+  (lambda (val)
+    (cases python-val val
+      (int-val (v) v)
+      (else '()))))
+
+(define py-val->float
+  (lambda (val)
+    (cases python-val val
+      (float-val (v) v)
+      (else '()))))
+
+(define py-val->bool
+  (lambda (val)
+    (cases python-val val
+      (bool-val (v) v)
+      (else '()))))
+
+(define py-val->list
+  (lambda (val)
+    (cases python-val val
+      (list-val (v) v)
+      (else '()))))
+
+(define py-val->proc
+  (lambda (val)
+    (cases python-val val
+      (proc-val (name body env) (list body (extend-env name val env)))
+      (else '()))))
+
+;;;-----------------------------------------------------------------------------------
+;;; environment
 
 (define-datatype environment environment?
   (empty-env)
   (extend-env
-   (ID identifier?)
+   (ID string?)
    (val py-val?)
-   (saved-env environment?))
-  (extend-env-function
-   (ID identifier?)
-   (body statement?)
-   (func-env environment?)))
+   (saved-env environment?)))
+
+(define apply-env
+  (lambda(env ID)
+    (cases environment env
+      (empty-env () '())
+      (extend-env (saved-ID saved-val saved-env)
+                  (if (eq? ID saved-ID) saved-val
+                      (apply-env saved-env ID))))))
+
+;;;--------------------------------------------------------------------------------------
+;;; interpret statements
+
+(define get-func-env
+  (lambda (params env glob-env globs)
+    (if (null? params) (list (empty-env) env)
+        (cases statement (car params)
+          (param-with-default (ID exp)
+                              (let ([fe-e (get-func-env (cdr params) env glob-env globs)])
+                                (let ([v-e (value-of exp (cadr fe-e) glob-env globs)])
+                                  (list (extend-env ID (car v-e) (car fe-e)) (cadr v-e)))))
+          (else '())))))
+                                            
+(define interpret-for
+  (lambda (ID lst body env g-env globs)
+    (if (null? lst) (list env g-env globs)
+        (let ([e-ge-gs-st (interpret body (extend-env ID (car lst) env) g-env globs)])
+          (cases stmt-status (cadddr e-ge-gs-st)
+            (break-st () (list (car e-ge-gs-st) (cadr e-ge-gs-st) (caddr e-ge-gs-st) (pass-st)))
+            (ret-none-st () e-ge-gs-st)
+            (ret-val-st (val) e-ge-gs-st)
+            (else (interpret-for ID (cdr lst) body (car e-ge-gs-st) (cadr e-ge-gs-st) (caddr e-ge-gs-st))))))))
+
+(define interpret-prog
+  (lambda (p)
+    (cases program p
+      (prog (stmt) (interpret stmt (empty-env) (empty-env) '())))))
+
+(define interpret
+  (lambda (stmt env glob-env globs)
+    (cases statement stmt
+      (statements (stmts this-stmt)
+                  (let ([e-ge-gs-st (interpret stmts env glob-env globs)])
+                    (cases stmt-status (cadddr e-ge-gs-st)
+                      (cont-st () (list (car e-ge-gs-st) (cadr e-ge-gs-st) (caddr e-ge-gs-st) (pass-st)))
+                      (break-st () e-ge-gs-st)
+                      (ret-none-st () e-ge-gs-st)
+                      (ret-val-st (val) e-ge-gs-st)
+                      (pass-st () (interpret this-stmt (car e-ge-gs-st) (cadr e-ge-gs-st) (caddr e-ge-gs-st))))))
+      (assignment (ID exp)
+                  (let ([v-e (value-of exp env glob-env globs)])
+                    (if (= (length globs) (length (remove ID globs)))
+                        (list (extend-env ID (car v-e) (cadr v-e)) glob-env globs (pass-st))
+                        (list (cadr v-e) (extend-env ID (car v-e) glob-env) globs (pass-st)))))
+      (global_stmt (ID) (list env glob-env (cons ID globs) (pass-st)))
+      (if_stmt (condition body else-block)
+               (let ([v-e (value-of condition env glob-env globs)])
+                 (if (py-val->bool (car v-e))
+                     (interpret body (cadr v-e) glob-env globs)
+                     (interpret else-block (cadr v-e) glob-env globs))))
+      (function-without-param (ID body)
+                              (list (extend-env ID (proc-val ID body (empty-env)) env) glob-env globs (pass-st)))
+      (function-with-param (ID params body)
+                           (let ([fe-e (get-func-env (reverse params) env glob-env globs)])
+                             (list (extend-env ID (proc-val ID body (car fe-e)) (cadr fe-e)) glob-env globs (pass-st))))
+      (For_stmt (ID lst body)
+                (let ([v-e (value-of lst env glob-env globs)])
+                  (interpret-for ID (py-val->list (car v-e)) body (cadr v-e) glob-env globs)))
+      (pass () (list env glob-env globs (pass-st)))
+      (break () (list env glob-env globs (break-st)))
+      (continue () (list env glob-env globs (cont-st)))
+      (return-none () (list env glob-env globs (ret-none-st)))
+      (return-value (exp)
+                    (let ([v-e (value-of exp env glob-env globs)])
+                     (list (cadr v-e) glob-env globs (ret-val-st (car v-e)))))
+      (param-with-default (ID exp) '()))))
+
+;;;------------------------------------------------------------------------------------
+;;; value-of expressions
+
+(define value-of-list
+  (lambda (lst env g-env globs)
+    (if (null? lst) (list '() env)
+        (let ([v-e (value-of (car lst) env g-env globs)])
+          (let ([l-e (value-of-list (cdr lst) (cadr v-e) g-env globs)])
+            (list (cons (car v-e) (car l-e)) (cadr l-e)))))))
+
+(define fix-func-env
+  (lambda (l f-env)
+    (cases environment f-env
+      (empty-env () (list l f-env))
+      (extend-env (ID val s-env) (let ([l-fe (fix-func-env l s-env)])
+                                   (if (null? (car l-fe)) (list '() (cadr l-fe))
+                                       (list (cdr (car l-fe)) (extend-env ID (car (car l-fe)) (cadr l-fe)))))))))
+
+(define value-of
+  (lambda (exp env g-env globs)
+    (cases expression exp
+      (true-exp () (list (bool-val #t) env))
+      (false-exp () (list (bool-val #f) env))
+      (none-exp () (list (none-val) env))
+      (num-exp (num) (if (exact-integer? num) (list (int-val num) env)
+                         (list (float-val num) env)))
+      (id-exp (ID) (if (= (length (remove ID globs)) (length globs))
+                       (list (apply-env env ID) env)
+                       (list (apply-env g-env ID) env)))
+      (list-exp (lst) (let ([l-e (value-of-list lst env g-env globs)])
+                        (list (list-val (car l-e)) (cadr l-e))))
+      (free-bracket-exp () (list (list-val '()) env))
+      (with-arg-func-exp (pri args) (let ([v-e (value-of pri env g-env globs)])
+                                      (let ([l-e (value-of-list args (cadr v-e) g-env globs)])
+                                        (let ([b-e (py-val->proc (car v-e))])
+                                          (let ([l-fe (fix-func-env (car l-e) (cadr b-e))])
+                                            (let ([fe-e-gs-rt (interpret (car b-e) (cadr l-fe) (cadr l-e) '())])
+                                              (cases stmt-status (cadddr fe-e-gs-rt)
+                                                (ret-val-st (val) (list val (cadr fe-e-gs-rt)))
+                                                (else (list (none-val) (cadr fe-e-gs-rt))))))))))
+      (no-arg-func-exp (pri) (let ([v-e (value-of pri env g-env globs)])
+                               (let ([b-e (py-val->proc (car v-e))])
+                                 (let ([fe-e-gs-rt (interpret (car b-e) (cadr b-e) (cadr v-e) '())])
+                                   (cases stmt-status (cadddr fe-e-gs-rt)
+                                     (ret-val-st (val) (list val (cadr fe-e-gs-rt)))
+                                     (else (list (none-val) (cadr fe-e-gs-rt))))))))
+      (bracket-exp (pri inb) (let ([p-e (value-of pri env g-env globs)])
+                               (let ([i-e (value-of inb (cadr p-e) g-env globs)])
+                                 (list (list-ref (py-val->list (car p-e)) (py-val->int (car i-e))) (cadr i-e)))))
+      (pow-exp (atom factor) (let ([a-e (value-of atom env g-env globs)])
+                               (let ([f-e (value-of factor (cadr a-e) g-env globs)])
+                                 (cases python-val (car a-e)
+                                   (int-val (val) (list (int-val (expt val (py-val->int (car f-e)))) (cadr f-e)))
+                                   (float-val (val) (list (float-val (expt val (py-val->float (car f-e)))) (cadr f-e)))
+                                   (else '())))))
+      (neg-exp (var) (let ([v-e (value-of var env g-env globs)])
+                       (cases python-val (car v-e)
+                         (int-val (val) (list (int-val (- val)) (cadr v-e)))
+                         (float-val (val) (list (float-val (- val)) (cadr v-e)))
+                         (else '()))))
+      (pos-exp (var) (value-of var env g-env globs))
+      (div-exp (top bot) (let ([t-e (value-of top env g-env globs)])
+                               (let ([b-e (value-of bot (cadr t-e) g-env globs)])
+                                 (cases python-val (car t-e)
+                                   (int-val (val) (list (int-val (quotient val (py-val->int (car b-e)))) (cadr b-e)))
+                                   (float-val (val) (list (float-val (/ val (py-val->float (car b-e)))) (cadr b-e)))
+                                   (else '())))))
+      (mult-exp (left right) (let ([l-e (value-of left env g-env globs)])
+                               (let ([r-e (value-of right (cadr l-e) g-env globs)])
+                                 (cases python-val (car l-e)
+                                   (int-val (val) (list (int-val (* val (py-val->int (car r-e)))) (cadr r-e)))
+                                   (float-val (val) (list (float-val (* val (py-val->float (car r-e)))) (cadr r-e)))
+                                   (else '())))))
+      (sub-exp (left right) (let ([l-e (value-of left env g-env globs)])
+                               (let ([r-e (value-of right (cadr l-e) g-env globs)])
+                                 (cases python-val (car l-e)
+                                   (int-val (val) (list (int-val (- val (py-val->int (car r-e)))) (cadr r-e)))
+                                   (float-val (val) (list (float-val (- val (py-val->float (car r-e)))) (cadr r-e)))
+                                   (else '())))))
+      (add-exp (left right) (let ([l-e (value-of left env g-env globs)])
+                               (let ([r-e (value-of right (cadr l-e) g-env globs)])
+                                 (cases python-val (car l-e)
+                                   (int-val (val) (list (int-val (+ val (py-val->int (car r-e)))) (cadr r-e)))
+                                   (float-val (val) (list (float-val (+ val (py-val->float (car r-e)))) (cadr r-e)))
+                                   (else '())))))
+      (gt-exp (left right) (let ([l-e (value-of left env g-env globs)])
+                               (let ([r-e (value-of right (cadr l-e) g-env globs)])
+                                 (cases python-val (car l-e)
+                                   (int-val (val) (list (bool-val (> val (py-val->int (car r-e)))) (cadr r-e)))
+                                   (float-val (val) (list (bool-val (> val (py-val->float (car r-e)))) (cadr r-e)))
+                                   (else '())))))
+      (lt-exp (left right) (let ([l-e (value-of left env g-env globs)])
+                               (let ([r-e (value-of right (cadr l-e) g-env globs)])
+                                 (cases python-val (car l-e)
+                                   (int-val (val) (list (bool-val (< val (py-val->int (car r-e)))) (cadr r-e)))
+                                   (float-val (val) (list (bool-val (< val (py-val->float (car r-e)))) (cadr r-e)))
+                                   (else '())))))
+      (equal-exp (left right) (let ([l-e (value-of left env g-env globs)])
+                               (let ([r-e (value-of right (cadr l-e) g-env globs)])
+                                 (list (bool-val (equal? (car l-e) (car r-e))) (cadr r-e)))))
+      (not-exp (var) (let ([v-e (value-of var env g-env globs)])
+                       (list (bool-val (not (py-val->bool (car v-e)))) (cadr v-e))))
+      (and-exp (left right) (let ([l-e (value-of left env g-env globs)])
+                               (let ([r-e (value-of right (cadr l-e) g-env globs)])
+                                 (list (bool-val (and (py-val->bool (car l-e)) (py-val->bool (car r-e)))) (cadr r-e)))))
+      (or-exp (left right) (let ([l-e (value-of left env g-env globs)])
+                               (let ([r-e (value-of right (cadr l-e) g-env globs)])
+                                 (list (bool-val (or (py-val->bool (car l-e)) (py-val->bool (car r-e)))) (cadr r-e))))))))
