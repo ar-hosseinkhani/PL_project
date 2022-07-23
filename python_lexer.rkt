@@ -94,7 +94,7 @@
     (for_stmt ((for ID in expression colon statements) (list 'for $2 $4 $6)))
     (expression ((disjunction) $1))
     (disjunction ((conjunction) $1)
-                 ((disjunction or conjunction) (list 'disjunction $1 $3))) ; TODO: check
+                 ((disjunction or conjunction) (list 'disjunction $1 $3)))
     (conjunction ((inversion) $1)
                  ((conjunction and inversion) (list 'conjunction $1 $3)))
     (inversion ((not inversion) (list 'inversion $2))
@@ -137,6 +137,15 @@
 (define lex-this (lambda (lexer input) (lambda () (lexer input))))
 (define my-lexer (lex-this python-lexer (open-input-string "def f(a = 2, b = 3): return a + b; ;")))
 (let ((parser-res (python-parser my-lexer))) parser-res)
+
+; (define lex-this (lambda (lexer input) (lambda () (lexer input))))
+; (define my-lexer (lex-this python-lexer (open-input-string "for x in [2,3,4]: return x; ;")))
+; (let ((parser-res (python-parser my-lexer))) parser-res)
+
+; (define lex-this (lambda (lexer input) (lambda () (lexer input))))
+; (define my-lexer (lex-this python-lexer (open-input-string "def f(): return 2; ;")))
+; (let ((parser-res (python-parser my-lexer))) parser-res)
+
 
 ;;;------------------------------------------------------------------------------------------
 ;;; datatype statement and expression and program
@@ -245,6 +254,7 @@
   (ret-none-st)
   (ret-val-st
    (val py-val?)))
+
 
 ;;;------------------------------------------------------------------------------------
 ;;; values
@@ -487,3 +497,5 @@
       (or-exp (left right) (let ([l-e (value-of left env g-env globs)])
                                (let ([r-e (value-of right (cadr l-e) g-env globs)])
                                  (list (bool-val (or (py-val->bool (car l-e)) (py-val->bool (car r-e)))) (cadr r-e))))))))
+
+
