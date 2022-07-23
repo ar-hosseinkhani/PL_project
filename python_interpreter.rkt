@@ -209,10 +209,25 @@
      (none-exp)
 )
 
+(define-datatype type type?
+     (type-int)
+     (type-bool)
+     (type-float)
+     (type-none)
+     (type-list)
+)
+
 (define-datatype program program? 
      (prog
           (var statement?))
+     (prog-check
+          (var statement?))
 )
+
+(define-datatype return-type return-type?
+       (return-colon
+          (Type type?))
+       (return-none-colon))
 
 (define-datatype statement statement?
      (statements
@@ -224,6 +239,10 @@
      (assignment
           (ID string?)
           (exp expression?))
+     (assignment-lhs
+          (ID string?)
+          (Type type?)
+          (exp expression?))
      (return-value
           (value expression?))
      (return-none)
@@ -232,12 +251,18 @@
      (function-with-param
           (ID string?)
           (params list?)
+          (re-type return-type?)
           (body statement?))
      (function-without-param
           (ID string?)
+          (re-type return-type?)
           (body statement?))
-     (param-with-default
+      (param-with-default
           (ID string?)
+          (exp expression?))
+     (param-with-default-type
+          (ID string?)
+          (Type type?)
           (exp expression?))
      (if_stmt
           (condition expression?)
