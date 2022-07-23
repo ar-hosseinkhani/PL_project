@@ -145,7 +145,7 @@
 
 ;;--------------------------------------------------------------------------------testing parser    
 (define lex-this (lambda (lexer input) (lambda () (lexer input))))
-(define my-lexer (lex-this python-lexer (open-input-string (evaluate "C:/Users/A/Desktop/sc/mm.txt"))))
+(define my-lexer (lex-this python-lexer (open-input-string (evaluate "pythonCode.txt"))))
 (let ((parser-res (python-parser my-lexer))) parser-res)
 
 ; test for statment and return
