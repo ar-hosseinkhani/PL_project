@@ -8,6 +8,16 @@
          (prefix-in : parser-tools/lex-sre)
          parser-tools/yacc)
 
+
+;;;----------------------------------------------------------------------------------
+;;; evaluate
+
+(define evaluate 
+  (lambda (path)
+    (read-file path)))
+
+
+;;;------------------------------------------------------------------------------------
 ;;; lexer and parser
 
 (define python-lexer
@@ -30,6 +40,7 @@
    ("True" (token-True))
    ("False" (token-False))
    ("None" (token-None))
+   ("print" (token-print))
    ("==" (token-equasion))
    (">" (token-grater-than))
    ("<" (token-less-than))
@@ -59,7 +70,7 @@
 (define-empty-tokens b (EOF pass continue break return global def if else for in or and not True False
                             None equasion grater-than less-than plus minus power division mult
                             bracket-begin bracket-end colon parenthes-begin parenthes-end comma
-                            assignment semicolon))
+                            assignment semicolon print))
 
 (define python-parser
   (parser
@@ -68,111 +79,77 @@
    (error void)
    (tokens a b)
    (grammar
-    (program ((statements) (list 'program $1)))
+    (program ((statements) (prog $1)))
     (statements ((statement semicolon) $1)
-                ((statements statement semicolon) (list 'statements $1 $2)))
+                ((statements statement semicolon) (statements $1 $2)))
     (statement ((compound_stmt) $1)
                ((simple_stmt) $1))
     (simple_stmt ((assignment_stmt) $1)
                  ((global_stmt) $1)
                  ((return_stmt) $1)
-                 ((pass) (list 'pass))
-                 ((break) (list 'break))
-                 ((continue) (list 'continue)))
+                 ((print-stmt) $1)
+                 ((pass) (pass))
+                 ((break) (break))
+                 ((continue) (continue)))
     (compound_stmt ((function_def) $1)
                    ((if_stmt) $1)
                    ((for_stmt) $1))
-    (assignment_stmt ((ID assignment expression) (list 'assignment $1 $3)))
-    (return_stmt ((return) (list 'return-non))
-                 ((return expression) (list 'return $2)))
-    (global_stmt ((global ID) (list 'global $2)))
-    (function_def ((def ID parenthes-begin params parenthes-end colon statements) (list 'func_def $2 $4 $7))
-                  ((def ID parenthes-begin parenthes-end colon statements) (list 'func_def_no_param $2 $6)))
-    (params ((param_with_default) (list $1))
-            ((params comma param_with_default) (append $1 (list $3))))
-    (param_with_default ((ID assignment expression) (list 'param $1 $3)))
-    (if_stmt ((if expression colon statements else_block) (list 'if $2 $4 $5)))
-    (else_block ((else colon statements) (list 'else $3)))
-    (for_stmt ((for ID in expression colon statements) (list 'for $2 $4 $6)))
+    (assignment_stmt ((ID assignment expression) (assignment $1 $3)))
+    (return_stmt ((return) (return-none))
+                 ((return expression) (return-value $2)))
+    (global_stmt ((global ID) (global_stmt $2)))
+    (function_def ((def ID parenthes-begin params parenthes-end colon statements) (function-with-param $2 $4 $7))
+                  ((def ID parenthes-begin parenthes-end colon statements) (function-without-param $2 $6)))
+    (params ((param_with_default) (list $1)) ; TODO: CHECK
+            ((params comma param_with_default) (append $1 (list $3)))) ; TODO: CHECK
+    (param_with_default ((ID assignment expression) (param-with-default $1 $3)))
+    (if_stmt ((if expression colon statements else_block) (if_stmt $2 $4 $5)))
+    (else_block ((else colon statements) $3)) ; TODO: CHECK
+    (for_stmt ((for ID in expression colon statements) (For_stmt $2 $4 $6)))
+    (print-stmt ((print parenthes-begin expression parenthes-end) (print-stmt $3)))
     (expression ((disjunction) $1))
     (disjunction ((conjunction) $1)
-                 ((disjunction or conjunction) (list 'disjunction $1 $3)))
+                 ((disjunction or conjunction) (or-exp $1 $3))) ; TODO: check
     (conjunction ((inversion) $1)
-                 ((conjunction and inversion) (list 'conjunction $1 $3)))
-    (inversion ((not inversion) (list 'inversion $2))
+                 ((conjunction and inversion) (and-exp $1 $3)))
+    (inversion ((not inversion) (not-exp $2))
                ((comparison) $1))
     (comparison ((eq_sum) $1)
                 ((lt_sum) $1)
                 ((gt_sum) $1)
                 ((sum) $1))
-    (eq_sum ((sum equasion sum) (list 'eq_sum $1 $3)))
-    (lt_sum ((sum less-than sum) (list 'lt_sum $1 $3)))
-    (gt_sum ((sum grater-than sum) (list 'gt_sum $1 $3)))
-    (sum ((sum plus term) (list 'sum_plus $1 $3))
-         ((sum minus term) (list 'sum_minus $1 $3))
+    (eq_sum ((sum equasion sum) (equal-exp $1 $3)))
+    (lt_sum ((sum less-than sum) (lt-exp $1 $3)))
+    (gt_sum ((sum grater-than sum) (gt-exp $1 $3)))
+    (sum ((sum plus term) (add-exp $1 $3))
+         ((sum minus term) (sub-exp $1 $3))
          ((term) $1))
-    (term ((term mult factor) (list 'mult $1 $3))
-         ((term division factor) (list 'division $1 $3))
+    (term ((term mult factor) (mult-exp $1 $3))
+         ((term division factor) (div-exp $1 $3))
          ((factor) $1))
-    (factor ((plus power_stmt) (list 'plus $2))
-            ((minus power_stmt) (list 'minus $2))
+    (factor ((plus power_stmt) (pos-exp $2))
+            ((minus power_stmt) (neg-exp $2))
             ((power_stmt) $1))
-    (power_stmt ((atom power factor) (list 'power $1 $3))
+    (power_stmt ((atom power factor) (pow-exp $1 $3))
                 ((primary) $1))
     (primary ((atom) $1)
-             ((primary bracket-begin expression bracket-end) (list 'primary_bracket $1 $3))
-             ((primary parenthes-begin parenthes-end) (list 'primary_noparam $1))
-             ((primary parenthes-begin arguments parenthes-end) (list 'primary_args $1 $3)))
-    (arguments ((expression) (list $1))
-               ((arguments comma expression) (append $1 (list $3))))
-    (atom ((ID) (list 'ID $1))
-          ((True) (list 'True))
-          ((False) (list 'False))
-          ((None) (list 'None))
-          ((NUM) (list 'NUM $1))
+             ((primary bracket-begin expression bracket-end) (bracket-exp $1 $3))
+             ((primary parenthes-begin parenthes-end) (no-arg-func-exp $1))
+             ((primary parenthes-begin arguments parenthes-end) (with-arg-func-exp $1 $3)))
+    (arguments ((expression) (list $1)) ; TODO: CHECK
+               ((arguments comma expression) (append $1 (list $3)))) ; TODO: CHECK
+    (atom ((ID) (id-exp $1))
+          ((True) (true-exp)) ; TODO: CHECK
+          ((False) (false-exp))
+          ((None) (none-exp))
+          ((NUM) (num-exp $1))
           ((list_stmt) $1))
-    (list_stmt ((bracket-begin expressions bracket-end) (list 'list $2))
-               ((bracket-begin bracket-end) (list 'empty_list)))
-    (expressions ((expressions comma expression) (append $1 (list $3)))
-                 ((expression) (list $1))))))
+    (list_stmt ((bracket-begin expressions bracket-end) (list-exp $2))
+               ((bracket-begin bracket-end) (free-bracket-exp)))
+    (expressions ((expressions comma expression) (append $1 (list $3))) ; TODO: CHECK
+                 ((expression) (list $1)))))) ; TODO: CHECK
 
-
-;;;----------------------------------------------------------------------------------evaluate
-
-(define evaluate 
-  (lambda (path)
-    (read-file path)))
-
-;;--------------------------------------------------------------------------------testing parser    
-(define lex-this (lambda (lexer input) (lambda () (lexer input))))
-(define my-lexer (lex-this python-lexer (open-input-string (evaluate "pythonCode.txt"))))
-(let ((parser-res (python-parser my-lexer))) parser-res)
-
-; test for statment and return
-
-; (define lex-this (lambda (lexer input) (lambda () (lexer input))))
-; (define my-lexer (lex-this python-lexer (open-input-string "for x in [2,3,4]: return x; ;")))
-; (let ((parser-res (python-parser my-lexer))) parser-res)
-
-; test f() without param
-
-; (define lex-this (lambda (lexer input) (lambda () (lexer input))))
-; (define my-lexer (lex-this python-lexer (open-input-string "def f(): return 2; ;")))
-; (let ((parser-res (python-parser my-lexer))) parser-res)
-
-
-; test global and ifelse statment 
-
-; (define lex-this (lambda (lexer input) (lambda () (lexer input))))
-; (define my-lexer (lex-this python-lexer (open-input-string "a=2; if a>3 : a=9; else: a=10; global a; ;")))
-; (let ((parser-res (python-parser my-lexer))) parser-res)
-
-; test conjunction and disjunction 
-; (define lex-this (lambda (lexer input) (lambda () (lexer input))))
-; (define my-lexer (lex-this python-lexer (open-input-string "c = a or b; d = a and b;")))
-; (let ((parser-res (python-parser my-lexer))) parser-res)
-
-;;;------------------------------------------------------------------------------------------
+;;;----------------------------------------------------------------------------------
 ;;; datatype statement and expression and program
 
 (define-datatype expression expression?
@@ -268,8 +245,10 @@
           (else_block statement?))
      (For_stmt
           (ID string?)
-          (lst list?)
+          (lst expression?)
           (body statement?))
+     (print-stmt
+          (var expression?))
 )
 
 (define-datatype stmt-status status?
@@ -280,8 +259,7 @@
   (ret-val-st
    (val py-val?)))
 
-
-;;;------------------------------------------------------------------------------------
+;;;------------------------------------------------------------------------------------------
 ;;; values
 
 (define-datatype python-val py-val?
@@ -344,7 +322,7 @@
     (cases environment env
       (empty-env () '())
       (extend-env (saved-ID saved-val saved-env)
-                  (if (eq? ID saved-ID) saved-val
+                  (if (equal? ID saved-ID) saved-val
                       (apply-env saved-env ID))))))
 
 ;;;--------------------------------------------------------------------------------------
@@ -373,7 +351,9 @@
 (define interpret-prog
   (lambda (p)
     (cases program p
-      (prog (stmt) (interpret stmt (empty-env) (empty-env) '())))))
+      (prog (stmt) (let ([x (interpret stmt (empty-env) (empty-env) '())]
+                         [y (displayln "")])
+                     (displayln "program finished"))))))
 
 (define interpret
   (lambda (stmt env glob-env globs)
@@ -412,8 +392,29 @@
       (return-value (exp)
                     (let ([v-e (value-of exp env glob-env globs)])
                      (list (cadr v-e) glob-env globs (ret-val-st (car v-e)))))
-      (param-with-default (ID exp) '()))))
+      (param-with-default (ID exp) '())
+      (print-stmt (exp) (let ([v-e (value-of exp env glob-env globs)])
+                          (let ([x (displayln (get-print-string (car v-e)))])
+                            (list (cadr v-e) glob-env globs (pass-st))))))))
+                            
 
+(define get-list-string
+  (lambda (lst)
+    (cond
+      [(null? lst) ""]
+      [(null? (cdr lst)) (get-print-string (car lst))]
+      [else (string-append (get-print-string (car lst)) (get-list-string (cdr lst)))])))
+                                      
+(define get-print-string
+  (lambda (value)
+    (cases python-val value
+      (int-val (val) (number->string val))
+      (float-val (val) (number->string val))
+      (bool-val (val) (if val "True" "False"))
+      (list-val (lst) (string-append "[" (get-list-string lst) "]"))
+      (none-val "None"))))
+    
+                                      
 ;;;------------------------------------------------------------------------------------
 ;;; value-of expressions
 
@@ -429,7 +430,7 @@
     (cases environment f-env
       (empty-env () (list l f-env))
       (extend-env (ID val s-env) (let ([l-fe (fix-func-env l s-env)])
-                                   (if (null? (car l-fe)) (list '() (cadr l-fe))
+                                   (if (null? (car l-fe)) (list '() (extend-env ID val (cadr l-fe)))
                                        (list (cdr (car l-fe)) (extend-env ID (car (car l-fe)) (cadr l-fe)))))))))
 
 (define value-of
@@ -522,5 +523,8 @@
       (or-exp (left right) (let ([l-e (value-of left env g-env globs)])
                                (let ([r-e (value-of right (cadr l-e) g-env globs)])
                                  (list (bool-val (or (py-val->bool (car l-e)) (py-val->bool (car r-e)))) (cadr r-e))))))))
-
-
+;;;------------------------------------------------------------------------------------------
+;;; run code
+(define lex-this (lambda (lexer input) (lambda () (lexer input))))
+(define my-lexer (lex-this python-lexer (open-input-string (evaluate "in7.txt"))))
+(interpret-prog (let ((parser-res (python-parser my-lexer))) parser-res))
