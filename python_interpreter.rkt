@@ -24,6 +24,7 @@
   (lexer
    (whitespace (python-lexer input-port))
    ((eof) (token-EOF))
+   ("checked" (token-checked))
    ("pass" (token-pass))
    ("continue" (token-continue))
    ("break" (token-break))
