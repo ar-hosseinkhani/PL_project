@@ -2,6 +2,8 @@
 
 (require (lib "eopl.ss" "eopl"))
 
+(require 2htdp/batch-io)
+
 (require parser-tools/lex
          (prefix-in : parser-tools/lex-sre)
          parser-tools/yacc)
@@ -134,9 +136,16 @@
     (expressions ((expressions comma expression) (append $1 (list $3)))
                  ((expression) (list $1))))))
 
-;testing parser    
+
+;;;----------------------------------------------------------------------------------evaluate
+
+(define evaluate 
+  (lambda (path)
+    (read-file path)))
+
+;;--------------------------------------------------------------------------------testing parser    
 (define lex-this (lambda (lexer input) (lambda () (lexer input))))
-(define my-lexer (lex-this python-lexer (open-input-string "def f(a = 2, b = 3): return a + b; ;")))
+(define my-lexer (lex-this python-lexer (open-input-string (evaluate "C:/Users/A/Desktop/sc/mm.txt"))))
 (let ((parser-res (python-parser my-lexer))) parser-res)
 
 ; test for statment and return
@@ -162,7 +171,6 @@
 ; (define lex-this (lambda (lexer input) (lambda () (lexer input))))
 ; (define my-lexer (lex-this python-lexer (open-input-string "c = a or b; d = a and b;")))
 ; (let ((parser-res (python-parser my-lexer))) parser-res)
-
 
 ;;;------------------------------------------------------------------------------------------
 ;;; datatype statement and expression and program
