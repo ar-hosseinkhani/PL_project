@@ -133,17 +133,34 @@
                ((bracket-begin bracket-end) (list 'empty_list)))
     (expressions ((expressions comma expression) (append $1 (list $3)))
                  ((expression) (list $1))))))
-    
+
+;testing parser    
 (define lex-this (lambda (lexer input) (lambda () (lexer input))))
 (define my-lexer (lex-this python-lexer (open-input-string "def f(a = 2, b = 3): return a + b; ;")))
 (let ((parser-res (python-parser my-lexer))) parser-res)
+
+; test for statment and return
 
 ; (define lex-this (lambda (lexer input) (lambda () (lexer input))))
 ; (define my-lexer (lex-this python-lexer (open-input-string "for x in [2,3,4]: return x; ;")))
 ; (let ((parser-res (python-parser my-lexer))) parser-res)
 
+; test f() without param
+
 ; (define lex-this (lambda (lexer input) (lambda () (lexer input))))
 ; (define my-lexer (lex-this python-lexer (open-input-string "def f(): return 2; ;")))
+; (let ((parser-res (python-parser my-lexer))) parser-res)
+
+
+; test global and ifelse statment 
+
+; (define lex-this (lambda (lexer input) (lambda () (lexer input))))
+; (define my-lexer (lex-this python-lexer (open-input-string "a=2; if a>3 : a=9; else: a=10; global a; ;")))
+; (let ((parser-res (python-parser my-lexer))) parser-res)
+
+; test conjunction and disjunction 
+; (define lex-this (lambda (lexer input) (lambda () (lexer input))))
+; (define my-lexer (lex-this python-lexer (open-input-string "c = a or b; d = a and b;")))
 ; (let ((parser-res (python-parser my-lexer))) parser-res)
 
 
