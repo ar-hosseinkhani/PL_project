@@ -100,16 +100,16 @@
     (global_stmt ((global ID) (global_stmt $2)))
     (function_def ((def ID parenthes-begin params parenthes-end colon statements) (function-with-param $2 $4 $7))
                   ((def ID parenthes-begin parenthes-end colon statements) (function-without-param $2 $6)))
-    (params ((param_with_default) (list $1)) ; TODO: CHECK
-            ((params comma param_with_default) (append $1 (list $3)))) ; TODO: CHECK
+    (params ((param_with_default) (list $1))
+            ((params comma param_with_default) (append $1 (list $3)))) 
     (param_with_default ((ID assignment expression) (param-with-default $1 $3)))
     (if_stmt ((if expression colon statements else_block) (if_stmt $2 $4 $5)))
-    (else_block ((else colon statements) $3)) ; TODO: CHECK
+    (else_block ((else colon statements) $3)) 
     (for_stmt ((for ID in expression colon statements) (For_stmt $2 $4 $6)))
     (print-stmt ((print parenthes-begin expression parenthes-end) (print-stmt $3)))
     (expression ((disjunction) $1))
     (disjunction ((conjunction) $1)
-                 ((disjunction or conjunction) (or-exp $1 $3))) ; TODO: check
+                 ((disjunction or conjunction) (or-exp $1 $3)))
     (conjunction ((inversion) $1)
                  ((conjunction and inversion) (and-exp $1 $3)))
     (inversion ((not inversion) (not-exp $2))
@@ -136,18 +136,18 @@
              ((primary bracket-begin expression bracket-end) (bracket-exp $1 $3))
              ((primary parenthes-begin parenthes-end) (no-arg-func-exp $1))
              ((primary parenthes-begin arguments parenthes-end) (with-arg-func-exp $1 $3)))
-    (arguments ((expression) (list $1)) ; TODO: CHECK
-               ((arguments comma expression) (append $1 (list $3)))) ; TODO: CHECK
+    (arguments ((expression) (list $1)) 
+               ((arguments comma expression) (append $1 (list $3))))
     (atom ((ID) (id-exp $1))
-          ((True) (true-exp)) ; TODO: CHECK
+          ((True) (true-exp)) 
           ((False) (false-exp))
           ((None) (none-exp))
           ((NUM) (num-exp $1))
           ((list_stmt) $1))
     (list_stmt ((bracket-begin expressions bracket-end) (list-exp $2))
                ((bracket-begin bracket-end) (free-bracket-exp)))
-    (expressions ((expressions comma expression) (append $1 (list $3))) ; TODO: CHECK
-                 ((expression) (list $1)))))) ; TODO: CHECK
+    (expressions ((expressions comma expression) (append $1 (list $3)))
+                 ((expression) (list $1)))))) 
 
 ;;;----------------------------------------------------------------------------------
 ;;; datatype statement and expression and program
